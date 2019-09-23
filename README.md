@@ -50,11 +50,13 @@ service ImGate {
 	// 登录注释
 	// @transmit
 	// @target Authorize
+	// @id 1
     rpc Login (ImLoginRequest) returns (ImLoginReply) {}
     
     // 已读
     // @transmit
     // @target Im
+    // @id 2
     rpc Read(ImReadRequest) returns (ImReadReply) {}
 }
 
@@ -62,6 +64,7 @@ service ImGate {
 // @target 目标后端服务名（一定要跟后端的服务名称对上），如果不存在则以当前service名代替（实际运行会有问题）
 // 因此，对于该插件必须要有这两个tag，缺一不可
 // 调用方法名、参数、返回类型也要跟后端服务的方法名、参数、返回类型对上
+// @id 数字id与当前的对应方法(packet.Service/Method)一一绑定，可不重复。需要自己维护id
 ```
 
 ## 应用代码
@@ -70,7 +73,7 @@ service ImGate {
 type GateClientPackHead struct {
 	Length uint16 // body的长度，65535/1024 ~ 63k
 	Seq    uint16 // 序列号
-	Cmdid  uint16 // 协议id，可以映射到对应的service:method（兼容字段，后期考虑，把房间聊天网关迁移过来）
+	Cmdid  uint16 // 协议id，可以映射到对应的service:method
 	Ver    uint16 // 协议更新版本号 1.0.1 => 1*100 + 0*10 + 1 => 101
 	Codec  uint16 // 0:proto  1:json
 	Opt    uint16 // 备用字段
@@ -84,7 +87,7 @@ type GateClientPack struct {
 
 // *****************************************************************************************
 import (
-	zqproto `hutte.zhanqi.tv/go/grpc-proto/goproto`
+	zqproto `.../grpc-proto/goproto`
 )
 
 // 转换协议并发送, 前提是解析出当前的包
@@ -129,5 +132,4 @@ func (p *Manager) translatePack(session *link.Session, pack *gatepack.GateClient
 
 
 
-![战旗im架构](E:\GoSpaceMod\protoc-gen-grpc-tcpgw\战旗im架构.jpg)
 
