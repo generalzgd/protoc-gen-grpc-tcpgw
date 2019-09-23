@@ -70,7 +70,7 @@ service ImGate {
 type GateClientPackHead struct {
 	Length uint16 // body的长度，65535/1024 ~ 63k
 	Seq    uint16 // 序列号
-	Cmdid  uint16 // 协议id，可以映射到对应的service:method（兼容字段，后期考虑，把房间聊天网关迁移过来）
+	Cmdid  uint16 // 协议id，可以映射到对应的service:method
 	Ver    uint16 // 协议更新版本号 1.0.1 => 1*100 + 0*10 + 1 => 101
 	Codec  uint16 // 0:proto  1:json
 	Opt    uint16 // 备用字段
@@ -84,7 +84,7 @@ type GateClientPack struct {
 
 // *****************************************************************************************
 import (
-	zqproto `hutte.zhanqi.tv/go/grpc-proto/goproto`
+	zqproto `..../grpc-proto/goproto`
 )
 
 // 转换协议并发送, 前提是解析出当前的包
