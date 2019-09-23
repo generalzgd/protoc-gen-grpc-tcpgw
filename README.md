@@ -129,5 +129,4 @@ func (p *Manager) translatePack(session *link.Session, pack *gatepack.GateClient
 
 
 
-![战旗im架构](E:\GoSpaceMod\protoc-gen-grpc-tcpgw\战旗im架构.jpg)
 
