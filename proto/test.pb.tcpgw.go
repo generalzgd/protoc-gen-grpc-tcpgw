@@ -21,11 +21,11 @@ import (
 )
 
 // define func
-type registerHandler func(args *transmitArgs) (err error)
+type registerHandler func(args *TransmitArgs) (err error)
 
-type transmit_Test_Handler func(*transmitArgs, TestClient) (proto.Message, error)
+type transmit_Test_Handler func(*TransmitArgs, TestClient) (proto.Message, error)
 
-type transmitArgs struct {
+type TransmitArgs struct {
 	Method      string
 	Endpoint    string
 	MD          metadata.MD
@@ -67,7 +67,7 @@ func decodeBytes(data []byte, codec uint16, inst proto.Message) error {
 // define call enter point
 func RegisterTransmitor(endpoint, method string, md metadata.MD, data []byte, codec uint16,
 	callback func(proto.Message), opts ...grpc.DialOption) error {
-	args := &transmitArgs{
+	args := &TransmitArgs{
 		Method:      method,
 		Endpoint:    endpoint,
 		MD:          md,
@@ -109,7 +109,7 @@ func RegisterTransmitor(endpoint, method string, md metadata.MD, data []byte, co
 
 // *********************************************************************************
 // 注册Test传输转换入口
-func register_Test_Transmitor(args *transmitArgs) (err error) {
+func register_Test_Transmitor(args *TransmitArgs) (err error) {
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	ctx = metadata.NewOutgoingContext(ctx, args.MD)
 	args.ctx = ctx
@@ -136,7 +136,7 @@ func register_Test_Transmitor(args *transmitArgs) (err error) {
 }
 
 // 注册Test/Send 传输方法入口
-func request_Test_Send(args *transmitArgs, client TestClient) (proto.Message, error) {
+func request_Test_Send(args *TransmitArgs, client TestClient) (proto.Message, error) {
 	protoReq := &FooRequest{}
 
 	if err := decodeBytes(args.Data, args.Codec, protoReq); err != nil {

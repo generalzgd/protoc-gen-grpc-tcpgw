@@ -12,6 +12,7 @@ package gen
 
 import (
 	`bytes`
+	"strconv"
 	"strings"
 	`text/template`
 
@@ -23,6 +24,7 @@ import (
 const (
 	TagTransmit = "@transmit"
 	TagTarget   = "@target"
+	TagId       = "@id"
 )
 
 type param struct {
@@ -120,12 +122,35 @@ func (p *methodWithComment) GetTargetSvrName() string {
 
 		if len(tarCommentLine) > 0 {
 			tar := strings.TrimSpace(strings.TrimPrefix(tarCommentLine, TagTarget))
+			tar = strings.TrimSpace(strings.Split(tar, " ")[0])
 			if len(tar) > 0 {
 				return generator.CamelCase(tar)
 			}
 		}
 	}
 	return *p.Service.Name // 默认返回当前服务名
+}
+
+func (p *methodWithComment) GetId() uint16 {
+	if p.CanOutput() {
+		idCommentLine := ""
+		for _, it := range p.CommentList {
+			if strings.Contains(it, TagId) {
+				idCommentLine = it
+				break
+			}
+		}
+
+		if len(idCommentLine) >0{
+			id := strings.TrimSpace(strings.TrimPrefix(idCommentLine, TagId))
+			id = strings.TrimSpace(strings.Split(id, " ")[0])
+			if len(id) > 0 {
+				v, _ := strconv.Atoi(id)
+				return uint16(v)
+			}
+		}
+	}
+	return 0
 }
 
 func applyTemplate(p param, name2Path map[string]string, path2Comment map[string]string) (string, error) {
@@ -237,24 +262,39 @@ import (
 
 	defTemplate = template.Must(template.New("def").Parse(`
 // define func
-type registerHandler func(args *transmitArgs) (err error)
+type registerHandler func(args *TransmitArgs) (err error)
 
 {{range $svc := .ServicesWithComment}}
-type transmit_{{$svc.TargetName}}_Handler func(*transmitArgs, {{$svc.TargetName}}Client) (proto.Message, error)
+type transmit_{{$svc.TargetName}}_Handler func(*TransmitArgs, {{$svc.TargetName}}Client) (proto.Message, error)
 {{end}}
 
-type transmitArgs struct {
+type TransmitArgs struct {
 	Method      string
 	Endpoint    string
+	Conn        *grpc.ClientConn
 	MD          metadata.MD
 	Data        []byte
 	Codec       uint16
 	Opts        []grpc.DialOption
-	EndCallback func(proto.Message)
+	DoneCallback func(proto.Message)
 	ctx         context.Context
 }
 
 var (
+	// tag @id to package.TargetService/Method map
+	id2meth = map[uint16]string{
+	{{range $svc := .ServicesWithComment}}
+	{{range $m := $svc.MethodsWithComment}}
+	{{$id := $m.GetId}}
+	{{if ne $id 0}} 
+	{{$id}}: "{{$.GoPkg.Name}}.{{$svc.TargetName}}/{{$m.GetName}}",
+	{{end}}
+	{{end}}
+	{{end}}
+	}
+
+	meth2id = map[string]uint16{}
+
 	{{range $svc := .ServicesWithComment}}
 	transmit_{{$svc.TargetName}}_Map = map[string]transmit_{{$svc.TargetName}}_Handler{}
 	{{end}}
@@ -263,7 +303,11 @@ var (
 )
 
 func init() {
-	// todo something missing
+	for k, v := range id2meth {
+		meth2id[v] = k
+	}
+
+	// todo something handler
 	{{range $svc := .ServicesWithComment}}
 		{{range $m := $svc.MethodsWithComment}}
 	transmit_{{$svc.TargetName}}_Map["{{$.GoPkg.Name}}.{{$svc.TargetName}}/{{$m.GetName}}"] = request_{{$svc.TargetName}}_{{$m.GetName}}
@@ -288,36 +332,44 @@ func decodeBytes(data []byte, codec uint16, inst proto.Message) error {
 	return nil
 }
 
-// define call enter point
-func RegisterTransmitor(endpoint, method string, md metadata.MD, data []byte, codec uint16,
-	callback func(proto.Message), opts ...grpc.DialOption) error {
-	args := &transmitArgs{
-		Method:      method,
-		Endpoint:    endpoint,
-		MD:          md,
-		Data:        data,
-		Codec:       codec,
-		EndCallback: callback,
-		Opts:        opts,
+// get meth(package.TargetService/Method) by id(cmdid)
+func GetMethById(id uint16) string {
+	return id2meth[id]
+}
+
+func GetIdByMeth(meth string) uint16 {
+	return meth2id[meth]
+}
+
+// 根据@id标签获取对应方法的请求参数对象
+func GetReqObjById(id uint16) proto.Message {
+	switch id {	{{range $svc := .ServicesWithComment}}{{range $m := $svc.MethodsWithComment}}{{$id := $m.GetId}}{{if ne $id 0}} 
+	case {{$id}}:
+		return &{{$m.RequestType.GetName}}{}{{end}}{{end}}{{end}}
 	}
-	if len(args.Method) < 1 || len(args.Endpoint) < 1 || len(args.MD) < 1 || args.EndCallback == nil {
+	return nil
+}
+
+func ParseMethod(method string) (string, string, string, error) {
+	method = strings.Trim(method, "/")
+	dotIdx := strings.Index(method, ".")
+	slashIdx := strings.Index(method, "/")
+	if dotIdx < 1 || slashIdx < 1 || dotIdx > slashIdx {
+		return "", "", "", errors.New("method must be type of 'package.ServiceName/Method'")
+	}
+	packageName := method[:dotIdx]
+	serviceName := strings.Trim(method[dotIdx:slashIdx], ".")
+	methodName := strings.Trim(method[slashIdx:], "/")
+	return packageName, serviceName, methodName, nil
+}
+
+// define call enter point
+func RegisterTransmitor(args *TransmitArgs) error {
+	if len(args.Method) < 1 || len(args.Endpoint) < 1 || len(args.MD) < 1 || args.DoneCallback == nil {
 		return errors.New("transmit args empty")
 	}
 
-	parseMethod := func(method string) (string, string, string, error) {
-		method = strings.Trim(method, "/")
-		dotIdx := strings.Index(method, ".")
-		slashIdx := strings.Index(method, "/")
-		if dotIdx < 1 || slashIdx < 1 || dotIdx > slashIdx {
-			return "", "", "", errors.New("method must be type of 'package.ServiceName/Method'")
-		}
-		packageName := method[:dotIdx]
-		serviceName := strings.Trim(method[dotIdx:slashIdx], ".")
-		methodName := strings.Trim(method[slashIdx:], "/")
-		return packageName, serviceName, methodName, nil
-	}
-
-	packageName, serviceName, _, err := parseMethod(method)
+	packageName, serviceName, _, err := ParseMethod(args.Method)
 	if err != nil {
 		return err
 	}
@@ -338,21 +390,22 @@ func RegisterTransmitor(endpoint, method string, md metadata.MD, data []byte, co
 // *********************************************************************************
 // 注册{{$svc.GetName}}传输转换入口
 {{if $svc.Comment}}{{$svc.GetFormatComment}}{{end}}
-func register_{{$svc.TargetName}}_Transmitor(args *transmitArgs) (err error) {
+func register_{{$svc.TargetName}}_Transmitor(args *TransmitArgs) (err error) {
+	if args.Conn == nil {
+		conn, err := grpc.Dial(args.Endpoint, args.Opts...)
+		if err != nil {
+			return err
+		}
+		defer conn.Close()
+		args.Conn = conn
+	}
+	
 	ctx := context.Background()
-	// ctx, _ := context.WithTimeout(ctx, 15*time.Second)
+	ctx, _ = context.WithTimeout(ctx, 5*time.Second)
 	ctx = metadata.NewOutgoingContext(ctx, args.MD)
 	args.ctx = ctx
 	//
-	conn, err := grpc.Dial(args.Endpoint, args.Opts...)
-	if err != nil {
-		return err
-	}
-
-	defer conn.Close()
-
-	client := New{{$svc.TargetName}}Client(conn)
-
+	client := New{{$svc.TargetName}}Client(args.Conn)
 	handler, ok := transmit_{{$svc.TargetName}}_Map[args.Method]
 	if !ok {
 		return errors.New("method error")
@@ -361,28 +414,25 @@ func register_{{$svc.TargetName}}_Transmitor(args *transmitArgs) (err error) {
 	if err != nil {
 		return err
 	}
-	args.EndCallback(res)
+	args.DoneCallback(res)
 	return nil
 }
 
 {{range $m := $svc.MethodsWithComment}}
 // 注册{{$svc.TargetName}}/{{$m.GetName}} 传输方法入口
 {{if $m.Comment}}{{$m.GetFormatComment}}{{end}}
-func request_{{$svc.TargetName}}_{{$m.GetName}}(args *transmitArgs, client {{$svc.TargetName}}Client) (proto.Message, error) {
+func request_{{$svc.TargetName}}_{{$m.GetName}}(args *TransmitArgs, client {{$svc.TargetName}}Client) (proto.Message, error) {
 	protoReq := &{{$m.RequestType.GetName}}{}
-
 	if err := decodeBytes(args.Data, args.Codec, protoReq); err != nil {
-		return nil, err
+		return nil, errors.New("codec err["+err.Error()+"]")
 	}
-
 	reply, err := client.{{$m.GetName}}(args.ctx, protoReq)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("call err["+err.Error()+"]")
 	}
 	return reply, nil
 }
 {{end}}
-
 {{end}}
 `))
 )

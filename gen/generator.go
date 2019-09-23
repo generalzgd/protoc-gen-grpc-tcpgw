@@ -79,21 +79,6 @@ func (p *TcpGenerator) generate(file *descriptor.File) (string, error) {
 		for _, m := range svc.Methods {
 			imports = append(imports, p.addEnumPathParamImports(file, m, pkgSeen)...)
 
-			/*name := fmt.Sprintf("%s/%s/%s", *file.Name, *svc.Name, *m.Name)
-			pt, ok := p.reg.commentsMap[name] // name2path
-			if !ok {
-				continue
-			}
-			codeComment := ""
-			if len(path2Comments) > 0 {
-				if com, ok := path2Comments[pt];ok{
-					codeComment = com
-				}
-			}
-			if !strings.Contains(codeComment, "send") {
-				continue
-			}*/
-
 			pkg := m.RequestType.File.GoPkg
 			if pkg == file.GoPkg || pkgSeen[pkg.Path] {
 				continue
@@ -139,7 +124,7 @@ func New(reg *Registry, registerFuncSuffix, pathTypeString string) generator.Gen
 		"encoding/json",
 		"errors",
 		"strings",
-		//"time",
+		"time",
 		"github.com/golang/protobuf/proto",
 		"google.golang.org/grpc",
 		"google.golang.org/grpc/metadata",
