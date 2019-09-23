@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+// FooRequest test
+message FooRequest {
+    uint32 a = 1;
+}
+
+// FooReply test
+message FooReply {
+    uint32 code = 1;
+}
+
+// test comment
+service Test  {
+//   send comment
+    rpc Send(FooRequest)returns(FooReply){}
+}

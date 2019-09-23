@@ -1,0 +1,349 @@
+{
+  "file_to_generate": [
+    "proto/test.proto"
+  ],
+  "parameter": "logtostderr=true",
+  "proto_file": [
+    {
+      "name": "proto/test.proto",
+      "message_type": [
+        {
+          "name": "FooRequest",
+          "field": [
+            {
+              "name": "a",
+              "number": 1,
+              "label": 1,
+              "type": 13,
+              "json_name": "a"
+            }
+          ]
+        },
+        {
+          "name": "FooReply",
+          "field": [
+            {
+              "name": "code",
+              "number": 1,
+              "label": 1,
+              "type": 13,
+              "json_name": "code"
+            }
+          ]
+        }
+      ],
+      "service": [
+        {
+          "name": "Test",
+          "method": [
+            {
+              "name": "Send",
+              "input_type": ".FooRequest",
+              "output_type": ".FooReply",
+              "options": {}
+            }
+          ]
+        }
+      ],
+      "source_code_info": {
+        "location": [
+          {
+            "span": [
+              0,
+              0,
+              15,
+              1
+            ]
+          },
+          {
+            "path": [
+              12
+            ],
+            "span": [
+              0,
+              0,
+              18
+            ]
+          },
+          {
+            "path": [
+              4,
+              0
+            ],
+            "span": [
+              3,
+              0,
+              5,
+              1
+            ],
+            "leading_comments": " FooRequest test\n"
+          },
+          {
+            "path": [
+              4,
+              0,
+              1
+            ],
+            "span": [
+              3,
+              8,
+              18
+            ]
+          },
+          {
+            "path": [
+              4,
+              0,
+              2,
+              0
+            ],
+            "span": [
+              4,
+              4,
+              17
+            ]
+          },
+          {
+            "path": [
+              4,
+              0,
+              2,
+              0,
+              4
+            ],
+            "span": [
+              4,
+              4,
+              3,
+              20
+            ]
+          },
+          {
+            "path": [
+              4,
+              0,
+              2,
+              0,
+              5
+            ],
+            "span": [
+              4,
+              4,
+              10
+            ]
+          },
+          {
+            "path": [
+              4,
+              0,
+              2,
+              0,
+              1
+            ],
+            "span": [
+              4,
+              11,
+              12
+            ]
+          },
+          {
+            "path": [
+              4,
+              0,
+              2,
+              0,
+              3
+            ],
+            "span": [
+              4,
+              15,
+              16
+            ]
+          },
+          {
+            "path": [
+              4,
+              1
+            ],
+            "span": [
+              8,
+              0,
+              10,
+              1
+            ],
+            "leading_comments": " FooReply test\n"
+          },
+          {
+            "path": [
+              4,
+              1,
+              1
+            ],
+            "span": [
+              8,
+              8,
+              16
+            ]
+          },
+          {
+            "path": [
+              4,
+              1,
+              2,
+              0
+            ],
+            "span": [
+              9,
+              4,
+              20
+            ]
+          },
+          {
+            "path": [
+              4,
+              1,
+              2,
+              0,
+              4
+            ],
+            "span": [
+              9,
+              4,
+              8,
+              18
+            ]
+          },
+          {
+            "path": [
+              4,
+              1,
+              2,
+              0,
+              5
+            ],
+            "span": [
+              9,
+              4,
+              10
+            ]
+          },
+          {
+            "path": [
+              4,
+              1,
+              2,
+              0,
+              1
+            ],
+            "span": [
+              9,
+              11,
+              15
+            ]
+          },
+          {
+            "path": [
+              4,
+              1,
+              2,
+              0,
+              3
+            ],
+            "span": [
+              9,
+              18,
+              19
+            ]
+          },
+          {
+            "path": [
+              6,
+              0
+            ],
+            "span": [
+              13,
+              0,
+              15,
+              1
+            ],
+            "leading_comments": " test comment\n"
+          },
+          {
+            "path": [
+              6,
+              0,
+              1
+            ],
+            "span": [
+              13,
+              8,
+              12
+            ]
+          },
+          {
+            "path": [
+              6,
+              0,
+              2,
+              0
+            ],
+            "span": [
+              14,
+              4,
+              43
+            ]
+          },
+          {
+            "path": [
+              6,
+              0,
+              2,
+              0,
+              1
+            ],
+            "span": [
+              14,
+              8,
+              12
+            ]
+          },
+          {
+            "path": [
+              6,
+              0,
+              2,
+              0,
+              2
+            ],
+            "span": [
+              14,
+              13,
+              23
+            ]
+          },
+          {
+            "path": [
+              6,
+              0,
+              2,
+              0,
+              3
+            ],
+            "span": [
+              14,
+              32,
+              40
+            ]
+          }
+        ]
+      },
+      "syntax": "proto3"
+    }
+  ],
+  "compiler_version": {
+    "major": 3,
+    "minor": 6,
+    "patch": 1,
+    "suffix": ""
+  }
+}
