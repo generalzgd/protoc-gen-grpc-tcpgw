@@ -26,7 +26,7 @@ import (
 	plugin_go `github.com/golang/protobuf/protoc-gen-go/plugin`
 	`github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/descriptor`
 
-	`hutte.zhanqi.tv/go/protoc-gen-grpc-tcpgw/gen`
+	`github.com/generalzgd/protoc-gen-grpc-tcpgw/gen`
 )
 
 var (
@@ -41,7 +41,7 @@ var (
 )
 
 var (
-	version = "0.0.1"
+	version = "1.0.1"
 )
 
 func main() {

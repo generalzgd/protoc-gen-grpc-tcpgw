@@ -1,4 +1,4 @@
-module hutte.zhanqi.tv/go/protoc-gen-grpc-tcpgw
+module github.com/generalzgd/protoc-gen-grpc-tcpgw
 
 go 1.12
 
@@ -8,7 +8,7 @@ require (
 	github.com/golang/protobuf v1.3.2
 	github.com/grpc-ecosystem/grpc-gateway v1.9.5
 	github.com/toolkits/slice v0.0.0-20141116085117-e44a80af2484
-	google.golang.org/grpc v1.22.0
+	google.golang.org/grpc v1.23.0
 )
 
 replace golang.org/x/sys => github.com/golang/sys v0.0.0-20190712062909-fae7ac547cb7
@@ -31,7 +31,7 @@ replace google.golang.org/api v0.3.1 => github.com/googleapis/google-api-go-clie
 
 replace google.golang.org/genproto => github.com/googleapis/go-genproto v0.0.0-20190516172635-bb713bdc0e52
 
-replace google.golang.org/grpc => github.com/grpc/grpc-go v1.22.0
+replace google.golang.org/grpc => github.com/grpc/grpc-go v1.23.0
 
 replace golang.org/x/lint => github.com/golang/lint v0.0.0-20190409202823-959b441ac422
 
