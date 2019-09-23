@@ -50,11 +50,13 @@ service ImGate {
 	// 登录注释
 	// @transmit
 	// @target Authorize
+	// @id 1 
     rpc Login (ImLoginRequest) returns (ImLoginReply) {}
     
     // 已读
     // @transmit
     // @target Im
+    // @id 2
     rpc Read(ImReadRequest) returns (ImReadReply) {}
 }
 
@@ -62,6 +64,7 @@ service ImGate {
 // @target 目标后端服务名（一定要跟后端的服务名称对上），如果不存在则以当前service名代替（实际运行会有问题）
 // 因此，对于该插件必须要有这两个tag，缺一不可
 // 调用方法名、参数、返回类型也要跟后端服务的方法名、参数、返回类型对上
+// @id 数字id与请求方法(packet.Service/Method)进行绑定
 ```
 
 ## 应用代码
