@@ -374,13 +374,9 @@ func GetIdByMeth(meth string) uint16 {
 	return meth2id[meth]
 }
 
-// 根据@id标签获取对应方法的请求参数对象
-func GetReqObjById(id uint16) proto.Message {
-	switch id {	{{range $svc := .ServicesWithComment}}{{range $m := $svc.MethodsWithComment}}{{$id := $m.GetUpId}}{{if ne $id 0}} 
-	case {{$id}}:
-		return &{{$m.RequestType.GetName}}{}{{end}}{{end}}{{end}}
-	}
-	return nil
+// 根据@id/@upid/@downid标签获取对应方法的请求参数对象
+func GetMsgObjById(id uint16) proto.Message {
+	return id2struct[id]
 }
 
 func ParseMethod(method string) (string, string, string, error) {
