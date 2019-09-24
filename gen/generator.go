@@ -125,6 +125,7 @@ func New(reg *Registry, registerFuncSuffix, pathTypeString string) generator.Gen
 		"errors",
 		"strings",
 		"time",
+		"github.com/generalzgd/comm-libs",
 		"github.com/golang/protobuf/proto",
 		"google.golang.org/grpc",
 		"google.golang.org/grpc/metadata",

@@ -2,3 +2,6 @@ protoc_gen_grpc_tcpgw
 protoc-gen-grpc-tcpgw
 /*.exe
 /.idea
+/test_in.bts
+/test_in.json
+/zqproto

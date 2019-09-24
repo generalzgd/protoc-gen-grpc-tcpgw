@@ -328,6 +328,12 @@ var (
 	{{$id := $m.GetDownId}}{{if ne $id 0}}{{$id}}:&{{$m.ResponseType.GetName}}{},{{end}}{{end}}{{end}}
 	}
 
+	structName2id = map[string]string{
+	{{range $svr := .ServicesWithComment}}{{range $m := $svr.MethodsWithComment}}
+	{{$id := $m.GetUpId}}{{if ne $id 0}}"{{$m.RequestType.GetName}}":{{$id}},{{end}}
+	{{$id := $m.GetDownId}}{{if ne $id 0}}"{{$m.ResponseType.GetName}}":{{$id}},{{end}}{{end}}{{end}}
+	}
+
 	{{range $svc := .ServicesWithComment}}
 	transmit_{{$svc.TargetName}}_Map = map[string]transmit_{{$svc.TargetName}}_Handler{}
 	{{end}}
@@ -376,7 +382,13 @@ func GetIdByMeth(meth string) uint16 {
 
 // 根据@id/@upid/@downid标签获取对应方法的请求参数对象
 func GetMsgObjById(id uint16) proto.Message {
-	return id2struct[id]
+	v := id2struct[id]
+	return v
+}
+
+func GetIdByMsgObj(obj proto.Message) uint16 {
+	name := comm_libs.GetStructName(obj)
+	return structName2id[name]
 }
 
 func ParseMethod(method string) (string, string, string, error) {
