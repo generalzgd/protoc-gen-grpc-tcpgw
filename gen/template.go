@@ -328,7 +328,7 @@ var (
 	{{$id := $m.GetDownId}}{{if ne $id 0}}{{$id}}:&{{$m.ResponseType.GetName}}{},{{end}}{{end}}{{end}}
 	}
 
-	structName2id = map[string]string{
+	structName2id = map[string]uint16{
 	{{range $svr := .ServicesWithComment}}{{range $m := $svr.MethodsWithComment}}
 	{{$id := $m.GetUpId}}{{if ne $id 0}}"{{$m.RequestType.GetName}}":{{$id}},{{end}}
 	{{$id := $m.GetDownId}}{{if ne $id 0}}"{{$m.ResponseType.GetName}}":{{$id}},{{end}}{{end}}{{end}}
