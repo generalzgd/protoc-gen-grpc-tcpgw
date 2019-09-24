@@ -315,15 +315,13 @@ type TransmitArgs struct {
 
 var (
 	// tag @id to package.TargetService/Method map
-	id2meth = map[uint16]string{
-	{{range $svc := .ServicesWithComment}}{{range $m := $svc.MethodsWithComment}}
+	id2meth = map[uint16]string{{{range $svc := .ServicesWithComment}}{{range $m := $svc.MethodsWithComment}}
 	{{$id := $m.GetUpId}}{{if ne $id 0}}{{$id}}: "{{$.GoPkg.Name}}.{{$svc.TargetName}}/{{$m.GetName}}",{{end}}{{end}}{{end}}
 	}
 
 	meth2id = map[string]uint16{}
 
-	id2struct = map[uint16]proto.Message{
-	{{range $svr := .ServicesWithComment}}{{range $m := $svr.MethodsWithComment}}
+	id2struct = map[uint16]proto.Message{ {{range $svr := .ServicesWithComment}}{{range $m := $svr.MethodsWithComment}}
 	{{$id := $m.GetUpId}}{{if ne $id 0}}{{$id}}:&{{$m.RequestType.GetName}}{},{{end}}
 	{{$id := $m.GetDownId}}{{if ne $id 0}}{{$id}}:&{{$m.ResponseType.GetName}}{},{{end}}{{end}}{{end}}
 	}
