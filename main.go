@@ -33,7 +33,7 @@ var (
 	importPrefix = flag.String("import_prefix", "", "prefix to be added to go package paths for imported proto files")
 	importPath   = flag.String("import_path", "", "used as the package if no input files declare go_package. If it contains slashes, everything up to the rightmost slash is ignored.")
 	file         = flag.String("file", "-", "where to load data from")
-	// file               = flag.String("file", "./test_in.bts", "where to load data from")
+	//file               = flag.String("file", "./test_in.bts", "where to load data from")
 	registerFuncSuffix = flag.String("register_func_suffix", "Handler", "used to construct names of generated Register*<Suffix> methods.")
 	pathType           = flag.String("paths", "", "specifies how the paths of generated files are structured")
 	versionFlag        = flag.Bool("version", false, "print current version")

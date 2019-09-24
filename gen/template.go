@@ -24,7 +24,9 @@ import (
 const (
 	TagTransmit = "@transmit"
 	TagTarget   = "@target"
-	TagId       = "@id"
+	TagId       = "@id"     // 上行请求协议对应的id
+	TagUpId     = "@upid"   // 上行请求协议对应的id
+	TagDownId   = "@downid" // 下行响应协议对应的id
 )
 
 type param struct {
@@ -95,6 +97,11 @@ func (p *methodWithComment) GetFormatComment() string {
 	}
 	li := make([]string, 0, len(p.CommentList))
 	for _, line := range p.CommentList {
+		if strings.Contains(line, TagTransmit) || strings.Contains(line, TagTarget) ||
+			strings.Contains(line, TagId) || strings.Contains(line, TagUpId) ||
+			strings.Contains(line, TagDownId) {
+			continue
+		}
 		li = append(li, "// "+line)
 	}
 	return strings.Join(li, "\n")
@@ -131,18 +138,45 @@ func (p *methodWithComment) GetTargetSvrName() string {
 	return *p.Service.Name // 默认返回当前服务名
 }
 
-func (p *methodWithComment) GetId() uint16 {
+func (p *methodWithComment) GetUpId() uint16 {
 	if p.CanOutput() {
 		idCommentLine := ""
+		tag := TagId
 		for _, it := range p.CommentList {
-			if strings.Contains(it, TagId) {
+			if strings.Contains(it, TagUpId) {
 				idCommentLine = it
+				tag = TagUpId
+				break
+			} else if strings.Contains(it, TagId) {
+				idCommentLine = it
+				tag = TagId
 				break
 			}
 		}
 
-		if len(idCommentLine) >0{
-			id := strings.TrimSpace(strings.TrimPrefix(idCommentLine, TagId))
+		if len(idCommentLine) > 0 {
+			id := strings.TrimSpace(strings.TrimPrefix(idCommentLine, tag))
+			id = strings.TrimSpace(strings.Split(id, " ")[0])
+			if len(id) > 0 {
+				v, _ := strconv.Atoi(id)
+				return uint16(v)
+			}
+		}
+	}
+	return 0
+}
+
+func (p *methodWithComment) GetDownId() uint16 {
+	if p.CanOutput() {
+		idCommentLine := ""
+		for _, it := range p.CommentList {
+			if strings.Contains(it, TagDownId) {
+				idCommentLine = it
+				break
+			}
+		}
+		if len(idCommentLine) > 0 {
+			id := strings.TrimSpace(strings.TrimPrefix(idCommentLine, TagDownId))
 			id = strings.TrimSpace(strings.Split(id, " ")[0])
 			if len(id) > 0 {
 				v, _ := strconv.Atoi(id)
@@ -255,7 +289,6 @@ package {{.GoPkg.Name}}
 
 import (
 	{{range $i := .Imports}}{{if $i.Standard}}{{$i | printf "%s\n"}}{{end}}{{end}}
-
 	{{range $i := .Imports}}{{if not $i.Standard}}{{$i | printf "%s\n"}}{{end}}{{end}}
 )
 `))
@@ -283,17 +316,17 @@ type TransmitArgs struct {
 var (
 	// tag @id to package.TargetService/Method map
 	id2meth = map[uint16]string{
-	{{range $svc := .ServicesWithComment}}
-	{{range $m := $svc.MethodsWithComment}}
-	{{$id := $m.GetId}}
-	{{if ne $id 0}} 
-	{{$id}}: "{{$.GoPkg.Name}}.{{$svc.TargetName}}/{{$m.GetName}}",
-	{{end}}
-	{{end}}
-	{{end}}
+	{{range $svc := .ServicesWithComment}}{{range $m := $svc.MethodsWithComment}}
+	{{$id := $m.GetUpId}}{{if ne $id 0}}{{$id}}: "{{$.GoPkg.Name}}.{{$svc.TargetName}}/{{$m.GetName}}",{{end}}{{end}}{{end}}
 	}
 
 	meth2id = map[string]uint16{}
+
+	id2struct = map[uint16]proto.Message{
+	{{range $svr := .ServicesWithComment}}{{range $m := $svr.MethodsWithComment}}
+	{{$id := $m.GetUpId}}{{if ne $id 0}}{{$id}}:&{{$m.RequestType.GetName}}{},{{end}}
+	{{$id := $m.GetDownId}}{{if ne $id 0}}{{$id}}:&{{$m.ResponseType.GetName}}{},{{end}}{{end}}{{end}}
+	}
 
 	{{range $svc := .ServicesWithComment}}
 	transmit_{{$svc.TargetName}}_Map = map[string]transmit_{{$svc.TargetName}}_Handler{}
@@ -343,7 +376,7 @@ func GetIdByMeth(meth string) uint16 {
 
 // 根据@id标签获取对应方法的请求参数对象
 func GetReqObjById(id uint16) proto.Message {
-	switch id {	{{range $svc := .ServicesWithComment}}{{range $m := $svc.MethodsWithComment}}{{$id := $m.GetId}}{{if ne $id 0}} 
+	switch id {	{{range $svc := .ServicesWithComment}}{{range $m := $svc.MethodsWithComment}}{{$id := $m.GetUpId}}{{if ne $id 0}} 
 	case {{$id}}:
 		return &{{$m.RequestType.GetName}}{}{{end}}{{end}}{{end}}
 	}
