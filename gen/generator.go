@@ -18,8 +18,8 @@ import (
 	`path/filepath`
 	`strings`
 
-	`github.com/gogo/protobuf/proto`
-	plugin_go `github.com/golang/protobuf/protoc-gen-go/plugin`
+	`github.com/golang/protobuf/proto`
+	plugingo `github.com/golang/protobuf/protoc-gen-go/plugin`
 	`github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/descriptor`
 	`github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway/generator`
 )
@@ -38,9 +38,9 @@ type TcpGenerator struct {
 	pathType           pathType
 }
 
-func (p *TcpGenerator) Generate(targets []*descriptor.File) ([]*plugin_go.CodeGeneratorResponse_File, error) {
+func (p *TcpGenerator) Generate(targets []*descriptor.File) ([]*plugingo.CodeGeneratorResponse_File, error) {
 	// panic("implement me")
-	var files []*plugin_go.CodeGeneratorResponse_File
+	var files []*plugingo.CodeGeneratorResponse_File
 	for _, file := range targets {
 		code, err := p.generate(file)
 		if err != nil {
@@ -57,7 +57,7 @@ func (p *TcpGenerator) Generate(targets []*descriptor.File) ([]*plugin_go.CodeGe
 		ext := filepath.Ext(name)
 		base := strings.TrimSuffix(name, ext)
 		output := fmt.Sprintf("%s.pb.tcpgw.go", base)
-		files = append(files, &plugin_go.CodeGeneratorResponse_File{
+		files = append(files, &plugingo.CodeGeneratorResponse_File{
 			Name:    proto.String(output),
 			Content: proto.String(string(formatted)),
 		})
