@@ -36,6 +36,7 @@ type TcpGenerator struct {
 	baseImports        []descriptor.GoPackage
 	registerFuncSuffix string
 	pathType           pathType
+	DefinePrefix       string
 }
 
 func (p *TcpGenerator) Generate(targets []*descriptor.File) ([]*plugingo.CodeGeneratorResponse_File, error) {
@@ -93,6 +94,7 @@ func (p *TcpGenerator) generate(file *descriptor.File) (string, error) {
 		File:    file,
 		Imports: imports,
 		// RegisterFunSuffix: p.registerFuncSuffix,
+		DefinePrefix:     p.DefinePrefix,
 	}
 	return applyTemplate(params, p.reg.commentsMap, path2Comments)
 }
@@ -117,7 +119,7 @@ func (p *TcpGenerator) addEnumPathParamImports(file *descriptor.File, m *descrip
 	return imports
 }
 
-func New(reg *Registry, registerFuncSuffix, pathTypeString string) generator.Generator {
+func New(reg *Registry, registerFuncSuffix, pathTypeString, definePrefix string) generator.Generator {
 	var imports []descriptor.GoPackage
 	for _, pkgpath := range []string{
 		"context",
@@ -161,5 +163,6 @@ func New(reg *Registry, registerFuncSuffix, pathTypeString string) generator.Gen
 		baseImports:        imports,
 		registerFuncSuffix: registerFuncSuffix,
 		pathType:           pathType,
+		DefinePrefix:       definePrefix,
 	}
 }

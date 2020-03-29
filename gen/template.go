@@ -22,8 +22,10 @@ import (
 )
 
 const (
+	TagImport   = "@import"
 	TagTransmit = "@transmit"
 	TagTarget   = "@target"
+	TagTarPkg   = "@tarpkg"
 	TagId       = "@id"     // 上行请求协议对应的id
 	TagUpId     = "@upid"   // 上行请求协议对应的id
 	TagDownId   = "@downid" // 下行响应协议对应的id
@@ -33,12 +35,16 @@ type param struct {
 	*descriptor.File
 	Imports []descriptor.GoPackage
 	// RegisterFunSuffix string
+	WithTransmitArgs bool
+	DefinePrefix     string
+	AdditionImports     []string
 }
 
 type defParam struct {
 	*descriptor.File
 	// Services []*descriptor.Service
 	ServicesWithComment []*serviceWithComment
+	DefinePrefix        string
 }
 
 type serviceWithComment struct {
@@ -47,6 +53,7 @@ type serviceWithComment struct {
 	Comment            string
 	CommentList        []string
 	TargetName         string // endpoint server
+	TargetPkg          string // 目标服务所在的包
 }
 
 func (p *serviceWithComment) CanOutput() bool {
@@ -64,6 +71,27 @@ func (p *serviceWithComment) ParseComment() {
 		commentLines[i] = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(it), "//"))
 	}
 	p.CommentList = commentLines
+}
+
+func (p *serviceWithComment) ParseAdditionalImport() []string {
+	var list []string
+	for _, line := range p.CommentList {
+		if strings.Contains(line, TagImport) {
+			tar := strings.TrimSpace(strings.TrimPrefix(line, TagImport))
+			tar = strings.TrimSpace(strings.Split(tar, " ")[0])
+			if len(tar) > 0 {
+				tmp := strings.SplitN(tar, ":", 2)
+				if len(tmp) < 2{
+					continue
+				}
+				flag, _ := strconv.Atoi(tmp[1])
+				if flag&1 > 0 {
+					list = append(list, tmp[0])
+				}
+			}
+		}
+	}
+	return list
 }
 
 func (p *serviceWithComment) GetFormatComment() string {
@@ -117,6 +145,22 @@ func (p *methodWithComment) CanOutput() bool {
 	return true
 }
 
+func (p *methodWithComment) GetRequestPackage() string {
+	pkg := p.RequestType.File.GetPackage()
+	if len(pkg) > 0 {
+		return pkg + "."
+	}
+	return ""
+}
+
+func (p *methodWithComment) GetResponsePackage() string {
+	pkg := p.ResponseType.File.GetPackage()
+	if len(pkg) > 0 {
+		return pkg + "."
+	}
+	return ""
+}
+
 func (p *methodWithComment) GetTargetSvrName() string {
 	if p.CanOutput() {
 		tarCommentLine := ""
@@ -136,6 +180,26 @@ func (p *methodWithComment) GetTargetSvrName() string {
 		}
 	}
 	return *p.Service.Name // 默认返回当前服务名
+}
+
+func (p *methodWithComment) GetTargetSvrPackage() string {
+	if p.CanOutput() {
+		tarPkg := ""
+		for _, it := range p.CommentList {
+			if strings.Contains(it, TagTarPkg) {
+				tarPkg = it
+				break
+			}
+		}
+		if len(tarPkg) > 0 {
+			tar := strings.TrimSpace(strings.TrimPrefix(tarPkg, TagTarPkg))
+			tar = strings.TrimSpace(strings.Split(tar, " ")[0])
+			if len(tar) > 0 {
+				return tar + "."
+			}
+		}
+	}
+	return ""
 }
 
 func (p *methodWithComment) GetUpId() uint16 {
@@ -189,10 +253,6 @@ func (p *methodWithComment) GetDownId() uint16 {
 
 func applyTemplate(p param, name2Path map[string]string, path2Comment map[string]string) (string, error) {
 	out := bytes.NewBuffer(nil)
-	if err := headerTemplate.Execute(out, p); err != nil {
-		return "", err
-	}
-
 	getComment := func(keys ...string) string {
 		comment := ""
 		pt := strings.Join(keys, "/")
@@ -206,6 +266,7 @@ func applyTemplate(p param, name2Path map[string]string, path2Comment map[string
 		msgName := generator.CamelCase(*msg.Name)
 		msg.Name = &msgName
 	}
+	var addiImport []string
 	// 需要输出的服务
 	var outServices []*serviceWithComment
 	for _, svc := range p.Services {
@@ -218,6 +279,11 @@ func applyTemplate(p param, name2Path map[string]string, path2Comment map[string
 			Comment: getComment(*p.Name, *svc.Name),
 		}
 		svcIt.ParseComment()
+		for _, im := range svcIt.ParseAdditionalImport() {
+			if !slice.ContainsString(addiImport, im) {
+				addiImport = append(addiImport, im)
+			}
+		}
 		for _, meth := range svc.Methods {
 			methName := generator.CamelCase(*meth.Name)
 			meth.Name = &methName
@@ -234,6 +300,11 @@ func applyTemplate(p param, name2Path map[string]string, path2Comment map[string
 		}
 	}
 
+	p.AdditionImports = addiImport
+	if err := headerTemplate.Execute(out, p); err != nil {
+		return "", err
+	}
+
 	// 根据 @target 目的服务，重新进行分类
 	tmpServices := map[string]*serviceWithComment{}
 	for _, svc := range outServices {
@@ -242,12 +313,14 @@ func applyTemplate(p param, name2Path map[string]string, path2Comment map[string
 				continue
 			}
 			tarName := m.GetTargetSvrName()
+			tarPkg := m.GetTargetSvrPackage()
 			tmpSvr, ok := tmpServices[tarName]
 			if !ok {
 				tmpSvr = &serviceWithComment{
 					Service:    svc.Service,
 					Comment:    svc.Comment,
 					TargetName: tarName,
+					TargetPkg:  tarPkg,
 				}
 				tmpServices[tarName] = tmpSvr
 			}
@@ -263,6 +336,7 @@ func applyTemplate(p param, name2Path map[string]string, path2Comment map[string
 	def := defParam{
 		File:                p.File,
 		ServicesWithComment: tarServices,
+		DefinePrefix:        p.DefinePrefix,
 	}
 	if err := defTemplate.Execute(out, def); err != nil {
 		return "", err
@@ -290,18 +364,23 @@ package {{.GoPkg.Name}}
 import (
 	{{range $i := .Imports}}{{if $i.Standard}}{{$i | printf "%s\n"}}{{end}}{{end}}
 	{{range $i := .Imports}}{{if not $i.Standard}}{{$i | printf "%s\n"}}{{end}}{{end}}
+	
+	{{range $i := .AdditionImports}}
+		"{{$i}}"{{end}}
 )
 `))
 
 	defTemplate = template.Must(template.New("def").Parse(`
 // define func
-type registerHandler func(args *TransmitArgs) (err error)
-
+{{$dot := "."}}
+{{$prefix := .DefinePrefix}}
 {{range $svc := .ServicesWithComment}}
-type transmit_{{$svc.TargetName}}_Handler func(*TransmitArgs, {{$svc.TargetName}}Client) (proto.Message, error)
+type {{$prefix}}transmit_{{$svc.TargetName}}_Handler func(*{{$prefix}}TransmitArgs, {{$svc.TargetPkg}}{{$svc.TargetName}}Client) (proto.Message, error)
 {{end}}
 
-type TransmitArgs struct {
+type {{$prefix}}registerHandler func(args *{{$prefix}}TransmitArgs) (err error)
+
+type {{$prefix}}TransmitArgs struct {
 	Method      string
 	Endpoint    string
 	Conn        *grpc.ClientConn
@@ -314,84 +393,104 @@ type TransmitArgs struct {
 }
 
 var (
+	// definePrefix = {{.DefinePrefix}}
 	// tag @id to package.TargetService/Method map
-	id2meth = map[uint16]string{
-	{{range $svc := .ServicesWithComment}}{{range $m := $svc.MethodsWithComment}}
-	{{$id := $m.GetUpId}}{{if ne $id 0}}{{$id}}: "{{$.GoPkg.Name}}.{{$svc.TargetName}}/{{$m.GetName}}",{{end}}{{end}}{{end}}
-	}
+	{{$prefix}}id2meth = map[uint16]string{}
 
-	meth2id = map[string]uint16{}
+	{{$prefix}}meth2id = map[string]uint16{}
 
-	id2struct = map[uint16]proto.Message{
-	{{range $svr := .ServicesWithComment}}{{range $m := $svr.MethodsWithComment}}
-	{{$id := $m.GetUpId}}{{if ne $id 0}}{{$id}}:&{{$m.RequestType.GetName}}{},{{end}}
-	{{$id := $m.GetDownId}}{{if ne $id 0}}{{$id}}:&{{$m.ResponseType.GetName}}{},{{end}}{{end}}{{end}}
-	}
+	{{$prefix}}id2struct = map[uint16]func()proto.Message{}
 
-	structName2id = map[string]uint16{
-	{{range $svr := .ServicesWithComment}}{{range $m := $svr.MethodsWithComment}}
-	{{$id := $m.GetUpId}}{{if ne $id 0}}"{{$m.RequestType.GetName}}":{{$id}},{{end}}
-	{{$id := $m.GetDownId}}{{if ne $id 0}}"{{$m.ResponseType.GetName}}":{{$id}},{{end}}{{end}}{{end}}
-	}
+	{{$prefix}}structName2id = map[string]uint16{}
 
 	{{range $svc := .ServicesWithComment}}
-	transmit_{{$svc.TargetName}}_Map = map[string]transmit_{{$svc.TargetName}}_Handler{}
+	{{$prefix}}transmit_{{$svc.TargetName}}_Map = map[string]{{$prefix}}transmit_{{$svc.TargetName}}_Handler{}
 	{{end}}
 
-	serviceMap = map[string]registerHandler{}
+	{{$prefix}}serviceMap = map[string]{{$prefix}}registerHandler{}
 )
 
 func init() {
-	for k, v := range id2meth {
-		meth2id[v] = k
+	// id2meth
+	{{range $svc := .ServicesWithComment}}
+		{{range $m := $svc.MethodsWithComment}}
+{{$id := $m.GetUpId}}{{if ne $id 0}}{{$prefix}}id2meth[{{$id}}] = "{{$.GoPkg.Name}}.{{$svc.TargetName}}/{{$m.GetName}}"{{end}}{{end}}
+	{{end}}
+	// meth2id
+	for k, v := range {{$prefix}}id2meth {
+		{{$prefix}}meth2id[v] = k
 	}
+	// id2struct
+	{{$prefix}}id2struct[6172] = func()proto.Message{return &imdef.ImError{}} // todo 这行为工具写死的代码,应该改成模板
+	{{$prefix}}id2struct[8197] = func()proto.Message{return &comm.HfError{}}
+	{{range $svr := .ServicesWithComment}}
+		{{range $m := $svr.MethodsWithComment}}
+			{{$id := $m.GetUpId}}{{if ne $id 0}}{{$prefix}}id2struct[{{$id}}] = func()proto.Message{return &{{$m.GetRequestPackage}}{{$m.RequestType.GetName}}{}}{{end}}
+			{{$id := $m.GetDownId}}{{if ne $id 0}}{{$prefix}}id2struct[{{$id}}] = func()proto.Message{return &{{$m.GetResponsePackage}}{{$m.ResponseType.GetName}}{}}{{end}}
+		{{end}}
+	{{end}}
+	
+	// structName2id
+	{{$prefix}}structName2id["ImError"] = 6172 // todo 这行为工具写死的代码,应该改成模板
+	{{$prefix}}structName2id["HfError"] = 8197
+	{{range $svr := .ServicesWithComment}}
+		{{range $m := $svr.MethodsWithComment}}
+			{{$id := $m.GetUpId}}{{if ne $id 0}}{{$prefix}}structName2id["{{$m.RequestType.GetName}}"] = {{$id}}{{end}}
+			{{$id := $m.GetDownId}}{{if ne $id 0}}{{$prefix}}structName2id["{{$m.ResponseType.GetName}}"] = {{$id}}{{end}}
+		{{end}}
+	{{end}}
 
 	// todo something handler
 	{{range $svc := .ServicesWithComment}}
 		{{range $m := $svc.MethodsWithComment}}
-	transmit_{{$svc.TargetName}}_Map["{{$.GoPkg.Name}}.{{$svc.TargetName}}/{{$m.GetName}}"] = request_{{$svc.TargetName}}_{{$m.GetName}}
-		{{end}}
+	{{$prefix}}transmit_{{$svc.TargetName}}_Map["{{$.GoPkg.Name}}.{{$svc.TargetName}}/{{$m.GetName}}"] = {{$prefix}}request_{{$svc.TargetName}}_{{$m.GetName}}{{end}}
 	{{end}}
 
 	{{range $svc := .ServicesWithComment}}
-	serviceMap["{{$.GoPkg.Name}}.{{$svc.TargetName}}"] = register_{{$svc.TargetName}}_Transmitor
-	{{end}}
+	{{$prefix}}serviceMap["{{$.GoPkg.Name}}.{{$svc.TargetName}}"] = {{$prefix}}register_{{$svc.TargetName}}_Transmitor{{end}}
 }
 
-func decodeBytes(data []byte, codec uint16, inst proto.Message) error {
+func {{$prefix}}decodeBytes(data []byte, codec uint16, inst proto.Message) error {
 	if codec == 0 {
-		if err := proto.Unmarshal(data, inst); err != nil {
-			return err
-		}
+		return proto.Unmarshal(data, inst)
 	} else if codec == 1 {
-		if err := json.Unmarshal(data, inst); err != nil {
-			return err
-		}
+		return json.Unmarshal(data, inst)
 	}
-	return nil
+	return errors.New("codec type error")
+}
+
+func {{$prefix}}encodeBytes(codec uint16, inst proto.Message) ([]byte, error) {
+	if codec == 0 {
+		return proto.Marshal(inst)
+	} else if codec == 1 {
+		return json.Marshal(inst)
+	}
+	return nil, errors.New("codec type error")
 }
 
 // get meth(package.TargetService/Method) by id(cmdid)
-func GetMethById(id uint16) string {
-	return id2meth[id]
+func {{$prefix}}GetMethById(id uint16) string {
+	return {{$prefix}}id2meth[id]
 }
 
-func GetIdByMeth(meth string) uint16 {
-	return meth2id[meth]
+func {{$prefix}}GetIdByMeth(meth string) uint16 {
+	return {{$prefix}}meth2id[meth]
 }
 
 // 根据@id/@upid/@downid标签获取对应方法的请求参数对象
-func GetMsgObjById(id uint16) proto.Message {
-	v := id2struct[id]
-	return v
+func {{$prefix}}GetMsgObjById(id uint16) (proto.Message, bool) {
+	if f, ok := {{$prefix}}id2struct[id]; ok {
+		return f(), true
+	}
+	return nil, false
 }
 
-func GetIdByMsgObj(obj proto.Message) uint16 {
+func {{$prefix}}GetIdByMsgObj(obj proto.Message) uint16 {
 	name := comm_libs.GetStructName(obj)
-	return structName2id[name]
+	return {{$prefix}}structName2id[name]
 }
 
-func ParseMethod(method string) (string, string, string, error) {
+func {{$prefix}}ParseMethod(method string) (string, string, string, error) {
 	method = strings.Trim(method, "/")
 	dotIdx := strings.Index(method, ".")
 	slashIdx := strings.Index(method, "/")
@@ -405,17 +504,17 @@ func ParseMethod(method string) (string, string, string, error) {
 }
 
 // define call enter point
-func RegisterTransmitor(args *TransmitArgs) error {
+func {{$prefix}}RegisterTransmitor(args *{{$prefix}}TransmitArgs) error {
 	if len(args.Method) < 1 || len(args.Endpoint) < 1 || len(args.MD) < 1 || args.DoneCallback == nil {
 		return errors.New("transmit args empty")
 	}
 
-	packageName, serviceName, _, err := ParseMethod(args.Method)
+	packageName, serviceName, _, err := {{$prefix}}ParseMethod(args.Method)
 	if err != nil {
 		return err
 	}
 	packageService := packageName + "." + serviceName
-	if handler, ok := serviceMap[packageService]; ok {
+	if handler, ok := {{$prefix}}serviceMap[packageService]; ok {
 		err := handler(args)
 		return err
 	}
@@ -426,12 +525,12 @@ func RegisterTransmitor(args *TransmitArgs) error {
 
 	transTamplate = template.Must(template.New("meth").Parse(`
 // registor single service enter point
-
+{{$prefix := .DefinePrefix}}
 {{range $svc := .ServicesWithComment}}
 // *********************************************************************************
 // 注册{{$svc.GetName}}传输转换入口
 {{if $svc.Comment}}{{$svc.GetFormatComment}}{{end}}
-func register_{{$svc.TargetName}}_Transmitor(args *TransmitArgs) (err error) {
+func {{$prefix}}register_{{$svc.TargetName}}_Transmitor(args *{{$prefix}}TransmitArgs) (err error) {
 	if args.Conn == nil {
 		conn, err := grpc.Dial(args.Endpoint, args.Opts...)
 		if err != nil {
@@ -446,8 +545,8 @@ func register_{{$svc.TargetName}}_Transmitor(args *TransmitArgs) (err error) {
 	ctx = metadata.NewOutgoingContext(ctx, args.MD)
 	args.ctx = ctx
 	//
-	client := New{{$svc.TargetName}}Client(args.Conn)
-	handler, ok := transmit_{{$svc.TargetName}}_Map[args.Method]
+	client := {{$svc.TargetPkg}}New{{$svc.TargetName}}Client(args.Conn)
+	handler, ok := {{$prefix}}transmit_{{$svc.TargetName}}_Map[args.Method]
 	if !ok {
 		return errors.New("method error")
 	}
@@ -462,9 +561,9 @@ func register_{{$svc.TargetName}}_Transmitor(args *TransmitArgs) (err error) {
 {{range $m := $svc.MethodsWithComment}}
 // 注册{{$svc.TargetName}}/{{$m.GetName}} 传输方法入口
 {{if $m.Comment}}{{$m.GetFormatComment}}{{end}}
-func request_{{$svc.TargetName}}_{{$m.GetName}}(args *TransmitArgs, client {{$svc.TargetName}}Client) (proto.Message, error) {
-	protoReq := &{{$m.RequestType.GetName}}{}
-	if err := decodeBytes(args.Data, args.Codec, protoReq); err != nil {
+func {{$prefix}}request_{{$svc.TargetName}}_{{$m.GetName}}(args *{{$prefix}}TransmitArgs, client {{$svc.TargetPkg}}{{$svc.TargetName}}Client) (proto.Message, error) {
+	protoReq := &{{$m.GetRequestPackage}}{{$m.RequestType.GetName}}{}
+	if err := {{$prefix}}decodeBytes(args.Data, args.Codec, protoReq); err != nil {
 		return nil, errors.New("codec err["+err.Error()+"]")
 	}
 	reply, err := client.{{$m.GetName}}(args.ctx, protoReq)

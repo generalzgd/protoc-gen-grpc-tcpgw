@@ -38,6 +38,7 @@ var (
 	pathType           = flag.String("paths", "", "specifies how the paths of generated files are structured")
 	versionFlag        = flag.Bool("version", false, "print current version")
 	debug              = flag.Bool("debug", false, "")
+	definePrefix       = flag.String("define_prefix", "", "var define prefix")
 )
 
 var (
@@ -107,7 +108,7 @@ func main() {
 		}
 	}
 
-	g := gen.New(reg, *registerFuncSuffix, *pathType)
+	g := gen.New(reg, *registerFuncSuffix, *pathType, *definePrefix)
 
 	reg.SetPrefix(*importPrefix)
 	reg.SetImportPath(*importPath)
