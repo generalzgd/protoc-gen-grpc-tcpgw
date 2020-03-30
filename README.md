@@ -7,6 +7,8 @@
 ```shell
 # 生成文件
 go build -o $GOPATH/bin/protoc-gen-grpc-tcpgw
+// or
+go install
 ```
 
 
@@ -16,6 +18,7 @@ go build -o $GOPATH/bin/protoc-gen-grpc-tcpgw
 ```shell
 # import_prefix: 导入包的前缀，默认空
 # import_path: 导入包的指定目录，默认空（即要导入的包都在同一级目录里）
+# paths: 两个选项，import 和 source_relative 。默认为 import ，代表按照生成的 go 代码的包的全路径去创建目录层级，source_relative 代表按照 proto 源文件的目录层级去创建 go 代码的目录层级，如果目录已存在则不用创建。
 # file: 指定文件，默认空（由protoc传入），对应的文件要对应CodeGeneratorRequest结构
 ```
 
@@ -49,6 +52,7 @@ service BackendSvr2 {
 service TcpGate {
 	// 路由转发方法1
 	// @transmit
+	// @tarpkg pkg 所在目录
 	// @target BackendSvr1
 	// @upid 1 请求协议(Method1Request)对应id, id唯一
 	// @downid 2 响应协议(Method1Reply)对应id
@@ -56,6 +60,7 @@ service TcpGate {
     
     // 已读
     // @transmit
+    // @tarpkg pkg 所在目录
     // @target BackendSvr2
     // @upid 3 请求协议(Method1Request)对应id, id唯一
     // @downid 4 响应协议(Method1Reply)对应id
