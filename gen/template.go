@@ -450,7 +450,7 @@ func init() {
 	{{$prefix}}serviceMap["{{$.GoPkg.Name}}.{{$svc.TargetName}}"] = {{$prefix}}register_{{$svc.TargetName}}_Transmitor{{end}}
 }
 
-func {{$prefix}}decodeBytes(data []byte, codec uint16, inst proto.Message) error {
+func {{$prefix}}DecodeBytes(data []byte, codec uint16, inst proto.Message) error {
 	if codec == 0 {
 		return proto.Unmarshal(data, inst)
 	} else if codec == 1 {
@@ -459,7 +459,7 @@ func {{$prefix}}decodeBytes(data []byte, codec uint16, inst proto.Message) error
 	return errors.New("codec type error")
 }
 
-func {{$prefix}}encodeBytes(codec uint16, inst proto.Message) ([]byte, error) {
+func {{$prefix}}EncodeBytes(codec uint16, inst proto.Message) ([]byte, error) {
 	if codec == 0 {
 		return proto.Marshal(inst)
 	} else if codec == 1 {
@@ -563,7 +563,7 @@ func {{$prefix}}register_{{$svc.TargetName}}_Transmitor(args *{{$prefix}}Transmi
 {{if $m.Comment}}{{$m.GetFormatComment}}{{end}}
 func {{$prefix}}request_{{$svc.TargetName}}_{{$m.GetName}}(args *{{$prefix}}TransmitArgs, client {{$svc.TargetPkg}}{{$svc.TargetName}}Client) (proto.Message, error) {
 	protoReq := &{{$m.GetRequestPackage}}{{$m.RequestType.GetName}}{}
-	if err := {{$prefix}}decodeBytes(args.Data, args.Codec, protoReq); err != nil {
+	if err := {{$prefix}}DecodeBytes(args.Data, args.Codec, protoReq); err != nil {
 		return nil, errors.New("codec err["+err.Error()+"]")
 	}
 	reply, err := client.{{$m.GetName}}(args.ctx, protoReq)
